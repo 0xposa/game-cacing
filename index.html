@@ -31,8 +31,8 @@
       flex-direction: column;
       align-items: center;
       width: 100%;
-      max-width: 420px;
-      gap: 12px;
+      max-width: 460px;
+      gap: 10px;
     }
 
     h1 {
@@ -58,6 +58,44 @@
     .score-item span {
       font-weight: bold;
       color: #38bdf8;
+    }
+
+    /* Pilihan Ukuran Map */
+    .map-size-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      background: #1e293b;
+      padding: 6px 12px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      font-size: 0.85rem;
+    }
+
+    .map-size-bar label {
+      color: #94a3b8;
+      font-weight: 500;
+      margin-right: 4px;
+    }
+
+    .size-btn {
+      background: #0f172a;
+      color: #94a3b8;
+      border: 1px solid #475569;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .size-btn.active {
+      background: #22c55e;
+      color: #0f172a;
+      border-color: #22c55e;
     }
 
     .canvas-wrapper {
@@ -179,11 +217,19 @@
       <div class="score-item">Tertinggi: <span id="highScore">0</span></div>
     </div>
 
+    <!-- Pilihan Ukuran Map -->
+    <div class="map-size-bar">
+      <label>🗺️ Map:</label>
+      <button class="size-btn" data-size="20">Standar (20x20)</button>
+      <button class="size-btn active" data-size="30">Luas (30x30)</button>
+      <button class="size-btn" data-size="40">Ekstra (40x40)</button>
+    </div>
+
     <div class="canvas-wrapper">
-      <canvas id="gameCanvas" width="400" height="400"></canvas>
+      <canvas id="gameCanvas" width="600" height="600"></canvas>
       <div id="overlay" class="overlay active">
         <h2 id="overlayTitle">Mulai Main</h2>
-        <p id="overlaySub">Gunakan tombol arah / D-pad</p>
+        <p id="overlaySub">Map Luas (30x30 Kotak)</p>
         <button id="startBtn" class="btn">Mulai</button>
       </div>
     </div>
@@ -211,10 +257,13 @@
     const overlayTitle = document.getElementById('overlayTitle');
     const overlaySub = document.getElementById('overlaySub');
     const startBtn = document.getElementById('startBtn');
+    const sizeBtns = document.querySelectorAll('.size-btn');
 
-    // Konfigurasi Grid
-    const GRID_SIZE = 20; 
-    const TILE_COUNT = canvas.width / GRID_SIZE; // 20x20 sel
+    // Konfigurasi Grid & Ukuran Map
+    let TILE_COUNT = 30; // Default 30x30 sel (Luas)
+    const GRID_SIZE = 20;
+    canvas.width = TILE_COUNT * GRID_SIZE; // 600px
+    canvas.height = TILE_COUNT * GRID_SIZE; // 600px
 
     // State Game
     let snake = [];
@@ -227,7 +276,7 @@
 
     let gameInterval = null;
     let isRunning = false;
-    const GAME_SPEED = 110; // milidetik per frame
+    const GAME_SPEED = 95; // Sedikit lebih responsif untuk map luas
 
     // Web Audio Sound FX sederhana (tanpa aset eksternal)
     let audioCtx = null;
@@ -252,11 +301,44 @@
       } catch (e) {}
     }
 
+    function setMapSize(newSize) {
+      if (isRunning) {
+        clearInterval(gameInterval);
+        isRunning = false;
+      }
+      TILE_COUNT = newSize;
+      canvas.width = TILE_COUNT * GRID_SIZE;
+      canvas.height = TILE_COUNT * GRID_SIZE;
+
+      sizeBtns.forEach(btn => {
+        if (parseInt(btn.dataset.size) === newSize) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      overlayTitle.textContent = 'Mulai Main';
+      overlaySub.textContent = `Map: ${TILE_COUNT}x${TILE_COUNT} Kotak`;
+      startBtn.textContent = 'Mulai';
+      overlay.classList.add('active');
+      initGame();
+    }
+
+    sizeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const size = parseInt(btn.dataset.size);
+        setMapSize(size);
+      });
+    });
+
     function initGame() {
+      const startX = Math.floor(TILE_COUNT / 2);
+      const startY = Math.floor(TILE_COUNT / 2);
       snake = [
-        { x: 10, y: 10 },
-        { x: 9, y: 10 },
-        { x: 8, y: 10 }
+        { x: startX, y: startY },
+        { x: startX - 1, y: startY },
+        { x: startX - 2, y: startY }
       ];
       velocity = { x: 1, y: 0 };
       nextVelocity = { x: 1, y: 0 };
@@ -310,7 +392,7 @@
           highScoreEl.textContent = highScore;
           localStorage.setItem('cacing_highscore', highScore);
         }
-        playBeep(600, 0.1, 'triangle');
+        playBeep(600, 0.08, 'triangle');
         spawnFood();
       } else {
         snake.pop();
@@ -341,7 +423,7 @@
       // Gambar Makanan (Apel Merah Bersinar)
       ctx.fillStyle = '#ef4444';
       ctx.shadowColor = '#f87171';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 8;
       ctx.beginPath();
       const foodX = food.x * GRID_SIZE + GRID_SIZE / 2;
       const foodY = food.y * GRID_SIZE + GRID_SIZE / 2;
@@ -353,7 +435,7 @@
       snake.forEach((segment, index) => {
         const x = segment.x * GRID_SIZE;
         const y = segment.y * GRID_SIZE;
-        const radius = 6;
+        const radius = 5;
 
         if (index === 0) {
           // Kepala Cacing
@@ -410,7 +492,7 @@
       clearInterval(gameInterval);
       playBeep(180, 0.35, 'sawtooth');
       overlayTitle.textContent = 'Game Over!';
-      overlaySub.textContent = `Skor akhir kamu: ${score}`;
+      overlaySub.textContent = `Skor akhir: ${score} (${TILE_COUNT}x${TILE_COUNT})`;
       startBtn.textContent = 'Main Lagi';
       overlay.classList.add('active');
     }
